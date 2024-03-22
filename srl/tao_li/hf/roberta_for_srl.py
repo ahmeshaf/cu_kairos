@@ -160,6 +160,7 @@ def run_srl():
 	tokenizer = AutoTokenizer.from_pretrained('tli8hf/roberta-base-marginal-semlink')
 	model = RobertaForSRL.from_pretrained('tli8hf/roberta-base-marginal-semlink')
 	model = model.to(device)
+	model.loss.to(device)
 	config = model.config
 
 	orig_toks = 'The company said it will continue to pursue a lifting of the suspension .'.split()
@@ -169,7 +170,8 @@ def run_srl():
 	batch = preprocess_input(config, tokenizer, orig_toks, v_idx, vnclasses, senses)
 	batch = batch_to_device(batch, device)
 	outputs = model.classify(batch)
-	print(outputs)
+	print(orig_toks)
+	print(outputs["srl_output"][0])
 
 
 if __name__ == '__main__':

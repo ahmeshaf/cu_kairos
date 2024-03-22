@@ -66,9 +66,9 @@ class CrossCRFLoss(torch.nn.Module):
 		self.vn_labels = np.asarray(self.opt.vn_labels)
 		self.srl_labels = np.asarray(self.opt.srl_labels)
 		self.condensed_labels = np.asarray(self.opt.condensed_labels)
-		self.cross2condensed = torch.tensor(self.opt.cross2condensed, dtype=torch.long)
-		self.condensed2cross = torch.tensor(self.opt.condensed2cross, dtype=torch.long)
-		self.condensed2srl = torch.tensor(self.opt.condensed2srl, dtype=torch.long)
+		self.cross2condensed = nn.Parameter(torch.LongTensor(self.opt.cross2condensed), requires_grad=False)
+		self.condensed2cross = nn.Parameter(torch.LongTensor(self.opt.condensed2cross), requires_grad=False)
+		self.condensed2srl = nn.Parameter(torch.LongTensor(self.opt.condensed2srl), requires_grad=False)
 
 		self.vn_classes = np.asarray(self.opt.vn_classes)
 		self.roleset_suffix = np.asarray(self.opt.roleset_suffix)
@@ -94,8 +94,8 @@ class CrossCRFLoss(torch.nn.Module):
 				for c in range(6):
 					if f'ARG{c}' in self.condensed_labels[p]:
 						self.condensed_core_masks[c][p] = 1
-		self.condensed_content_mask = torch.tensor(self.condensed_content_mask)
-		self.condensed_core_masks = torch.tensor(self.condensed_core_masks)
+		self.condensed_content_mask = nn.Parameter(torch.tensor(self.condensed_content_mask), requires_grad=False)
+		self.condensed_core_masks = nn.Parameter(torch.tensor(self.condensed_core_masks), requires_grad=False)
 
 		self.srl_core_masks = [[0 for _ in self.opt.srl_labels] for _ in range(6)] 	# ARG0-ARG5
 		self.srl_core_label_idx = []
@@ -106,7 +106,7 @@ class CrossCRFLoss(torch.nn.Module):
 				if f'ARG{c}' in srl_l:
 					self.srl_core_masks[c][i] = 1
 					self.srl_core_label_idx.append(i)
-		self.srl_core_masks = torch.tensor(self.srl_core_masks)
+		self.srl_core_masks = nn.Parameter(torch.tensor(self.srl_core_masks), requires_grad=False)
 		print('srl_core_labels', [self.opt.srl_labels[k] for k in self.srl_core_label_idx])
 
 		# (num_vn_label, num_condensed_label)
@@ -120,7 +120,7 @@ class CrossCRFLoss(torch.nn.Module):
 			if sum(self.vn2condensed_mask[i]) == 0:
 				print(f'{self.opt.vn_labels[i]} has no mapping to condensed labels')
 
-		self.vn2condensed_mask = torch.tensor(self.vn2condensed_mask, dtype=torch.bool)
+		self.vn2condensed_mask = nn.Parameter(torch.tensor(self.vn2condensed_mask, dtype=torch.bool), requires_grad=False)
 		self.vn2condensed_mask = self.vn2condensed_mask
 		num_valid_vn = self.vn2condensed_mask.any(-1).sum().item()
 		print('num_valid_vn', f'{num_valid_vn}/{len(self.vn_labels)}')
@@ -136,7 +136,7 @@ class CrossCRFLoss(torch.nn.Module):
 			if sum(self.srl2condensed_mask[k]) == 0:
 				print(f'{self.opt.srl_labels[k]} has no mapping to condensed labels')
 
-		self.srl2condensed_mask = torch.tensor(self.srl2condensed_mask, dtype=torch.bool)
+		self.srl2condensed_mask = nn.Parameter(torch.tensor(self.srl2condensed_mask, dtype=torch.bool), requires_grad=False)
 		self.srl2condensed_mask = self.srl2condensed_mask
 		num_valid_srl = self.srl2condensed_mask.any(-1).sum().item()
 		print('num_valid_srl', f'{num_valid_srl}/{len(self.srl_labels)}')
@@ -153,8 +153,8 @@ class CrossCRFLoss(torch.nn.Module):
 				label = label[2:]
 				if ('I-' + label) in self.opt.srl_labels:
 					self.srl_b2i[i] = self.opt.srl_labels.index('I-' + label)
-		self.vn_b2i = torch.tensor(self.vn_b2i)
-		self.srl_b2i = torch.tensor(self.srl_b2i)
+		self.vn_b2i = nn.Parameter(torch.tensor(self.vn_b2i), requires_grad=False)
+		self.srl_b2i = nn.Parameter(torch.tensor(self.srl_b2i), requires_grad=False)
 
 
 		# make CRF module
@@ -179,7 +179,7 @@ class CrossCRFLoss(torch.nn.Module):
 		assert(len(a_semlink.shape) == 3)	# (num_v, 2, max_num_semlink)
 		# importantly, replace -1 with index that points to O (ie 0)
 		b_roles = a_semlink[:, 0, :]
-		b_roles = torch.where(b_roles != -1, b_roles, 0)	# (num_v, max_num_semlink)
+		b_roles = torch.where(b_roles != -1, b_roles, 0)
 		i_roles = self.srl_b2i[b_roles].to(b_roles.device)
 		b_args = a_semlink[:, 1, :]
 		b_args = torch.where(b_args != -1, b_args, 0)		# (num_v, max_num_semlink)
