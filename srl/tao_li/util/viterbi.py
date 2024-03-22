@@ -1,6 +1,17 @@
 import torch
 import math
-from typing import Any, Dict, List, Optional, Sequence, Tuple, TypeVar, Union, NamedTuple
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    TypeVar,
+    Union,
+    NamedTuple,
+)
+
 
 def viterbi_decode(
     tag_sequence: torch.Tensor,
@@ -54,7 +65,9 @@ def viterbi_decode(
     elif top_k >= 1:
         flatten_output = False
     else:
-        raise ValueError(f"top_k must be either None or an integer >=1. Instead received {top_k}")
+        raise ValueError(
+            f"top_k must be either None or an integer >=1. Instead received {top_k}"
+        )
 
     sequence_length, num_tags = list(tag_sequence.size())
 

@@ -51,6 +51,6 @@ class Holder(dict):
     def __unicode__(self):
         return unicode(repr(self.__dict__))
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     pass
-    
