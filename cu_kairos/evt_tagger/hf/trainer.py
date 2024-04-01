@@ -1,11 +1,23 @@
 import json
+
+import datasets
+import numpy as np
 import torch
 import typer
 
-from datasets import load_from_disk
+from datasets import load_from_disk, Dataset
 from pathlib import Path
-from torch.utils.data import Dataset
-from transformers import Trainer, TrainingArguments
+
+from torch.utils.data import DataLoader
+from transformers import (
+    AutoModelForSeq2SeqLM,
+    AutoTokenizer,
+    DataCollatorForSeq2Seq,
+    Trainer,
+    TrainingArguments,
+    Seq2SeqTrainingArguments,
+    Seq2SeqTrainer, GenerationConfig,
+)
 
 from .models import EventTagger
 from ..util import compute_metrics
@@ -13,64 +25,89 @@ from ..util import compute_metrics
 app = typer.Typer()
 
 
-class EventTaggingDataset(Dataset):
-    def __init__(self, sentences, labels, tokenizer, label_to_id, max_length=512):
-        self.sentences = sentences  # List of sentences
-        self.labels = labels  # List of label sequences in IOB format
-        self.tokenizer = tokenizer
-        self.label_to_id = label_to_id
-        self.max_length = max_length
+def pre_process(dataset):
+    entities = "entities: "
+    triggers = "triggers: "
+    inputs = [entities + doc for doc in dataset["sentence"]] + [
+        triggers + doc for doc in dataset["sentence"]
+    ]
+    labels_txt = [doc if doc else "NA" for doc in dataset["entities"]] + [
+        doc if doc else "NA" for doc in dataset["triggers"]
+    ]
 
-    def __len__(self):
-        return len(self.sentences)
+    return Dataset.from_dict({
+        "sentence": inputs, "labels": labels_txt
+    })
 
-    def __getitem__(self, idx):
-        sentence = self.sentences[idx]
-        label_sequence = self.labels[idx]
-        inputs = self.tokenizer(
-            sentence,
-            is_split_into_words=True,
-            return_offsets_mapping=True,
-            padding=True,
-            truncation=True,
-            max_length=self.max_length,
-        )
-        labels = [self.label_to_id["O"]] * len(
-            inputs["input_ids"]
-        )  # Initialize with "O"
 
-        input_ids = inputs["input_ids"]
-        offset_mapping = inputs["offset_mapping"]
-        token_index = 0
+@app.command()
+def trainer_seq2seq(config_file: Path, dataset_name: str):
+    config = json.load(open(config_file))
+    dataset = datasets.load_dataset(dataset_name)
 
-        for i, (start, end) in enumerate(offset_mapping):
-            if start == end == 0 or token_index >= len(label_sequence):
-                continue  # Skip special tokens and handle index overflow
+    model_name_or_path = config.pop("model_name_or_path")
+    tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
 
-            # Align labels with first subtoken of original token
-            if input_ids[i] != self.tokenizer.pad_token_id:
-                labels[i] = self.label_to_id.get(
-                    label_sequence[token_index], self.label_to_id["O"]
-                )
-                if (
-                    token_index < len(label_sequence) - 1
-                    and "B-" in label_sequence[token_index]
-                ):
-                    next_label = label_sequence[token_index + 1]
-                    if "I-" in next_label:
-                        token_index += 1
-                        while (
-                            token_index < len(label_sequence)
-                            and "I-" in label_sequence[token_index]
-                        ):
-                            token_index += 1
-                            continue
-                else:
-                    token_index += 1
+    train_dataset = pre_process(dataset["train"])
+    eval_dataset = pre_process(dataset["validation"])
 
-        inputs["labels"] = labels
-        inputs.pop("offset_mapping")  # No longer needed
-        return {key: torch.tensor(val) for key, val in inputs.items()}
+    def preprocess_data(examples):
+        model_inputs = tokenizer(examples['sentence'], max_length=128, truncation=True)
+        with tokenizer.as_target_tokenizer():
+            labels = tokenizer(examples['labels'], max_length=32, truncation=True)
+        model_inputs['labels'] = labels['input_ids']
+        return model_inputs
+
+    train_tokenized = train_dataset.map(preprocess_data, batched=True)
+    eval_tokenized = eval_dataset.map(preprocess_data, batched=True)
+
+    model = AutoModelForSeq2SeqLM.from_pretrained(model_name_or_path)
+    training_args = Seq2SeqTrainingArguments(**config["trainer"])
+
+    generation_config = GenerationConfig.from_pretrained(model_name_or_path)
+    generation_config.max_new_tokens = 32
+    generation_config.early_stopping = True
+    generation_config.min_new_tokens = 1
+    generation_config.num_beams = 2
+
+    training_args.generation_config = generation_config
+    data_collator = DataCollatorForSeq2Seq(tokenizer=tokenizer, model=model)
+
+    def compute_prf(eval_pred):
+        predictions, labs = eval_pred
+        predictions = np.where(predictions != -100, predictions, tokenizer.pad_token_id)
+        decoded_preds = tokenizer.batch_decode(predictions, skip_special_tokens=True)
+        labs = np.where(labs != -100, labs, tokenizer.pad_token_id)
+        decoded_labels = tokenizer.batch_decode(labs, skip_special_tokens=True)
+
+        decoded_preds = [set([p.strip() for p in pred.split("|")]) for pred in decoded_preds]
+        decoded_labels = [set([p.strip() for p in pred.split("|")]) for pred in decoded_labels]
+
+        common_preds_lens = [len(set.intersection(p1, p2)) for p1, p2 in zip(decoded_preds, decoded_labels)]
+        decoded_preds_lens = [len(p) for p in decoded_preds]
+        decoded_labels_lens = [len(p) for p in decoded_labels]
+
+        return {
+            "precision": np.sum(common_preds_lens)/np.sum(decoded_preds_lens),
+            "recall": np.sum(common_preds_lens)/np.sum(decoded_labels_lens)
+        }
+
+    t5_trainer = Seq2SeqTrainer(
+        model=model,
+        args=training_args,
+        train_dataset=train_tokenized,
+        eval_dataset=eval_tokenized,
+        tokenizer=tokenizer,
+        data_collator=data_collator,
+        compute_metrics=compute_prf,
+    )
+    t5_trainer.train()
+    t5_trainer.save_model()
+
+
+@app.command()
+def train_ecb_ed(config_file: Path):
+    pass
 
 
 @app.command()
@@ -91,14 +128,16 @@ def trainer(config_file: Path, train_dataset_path: str, eval_dataset_path: str):
     labels = config.pop("labels")
     training_args = TrainingArguments(**config)
 
-    model = EventTagger.from_pretrained(model_name_or_path, num_labels=len(labels), config=config)
+    model = EventTagger.from_pretrained(
+        model_name_or_path, num_labels=len(labels), config=config
+    )
 
     evt_trainer = Trainer(
         model=model,  # Your initialized RoBERTa model
         args=training_args,  # Training arguments defined above
         train_dataset=train_dataset,  # Training dataset
         eval_dataset=eval_dataset,  # Evaluation dataset
-        compute_metrics=compute_metrics,   # Function to compute metrics, for evaluation
+        compute_metrics=compute_metrics,  # Function to compute metrics, for evaluation
     )
     evt_trainer.train()
 

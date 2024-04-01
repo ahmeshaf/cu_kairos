@@ -1,13 +1,17 @@
 {
-    "output_dir": "/media/rehan/big_disk/models/kairos/evt_tagger_roberta_base/",
-    "num_train_epochs": 5,
-    "per_device_train_batch_size": 8,
-    "per_device_eval_batch_size": 8,
-    "warmup_steps": 500,
-    "weight_decay": 0.01,
-    "logging_dir": "/media/rehan/big_disk/logs/kairos/evt_tagger_roberta_base/",
-    "logging_steps": 10,
-    "evaluation_strategy": "epoch",
     "model_name_or_path": "roberta-base",
-    "labels": ["B-EVT", "I-EVT", "O"]
+    "trainer": {
+        "output_dir": "/media/rehan/big_disk/models/kairos/evt_tagger_roberta_base/",
+        "num_train_epochs": 5,
+        "per_device_train_batch_size": 8,
+        "per_device_eval_batch_size": 8,
+        "warmup_steps": 500,
+        "weight_decay": 0.01,
+        "logging_dir": "/media/rehan/big_disk/logs/kairos/evt_tagger_roberta_base/",
+        "logging_steps": 10,
+        "evaluation_strategy": "epoch",
+        "model_name_or_path": "roberta-base",
+        "labels": ["B-EVT", "I-EVT", "O"]
+    },
+    "optimizer": {"lr": 5e-5, "eps": 1e-8}
 }
