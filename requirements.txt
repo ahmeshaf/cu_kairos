@@ -9,3 +9,7 @@ h5py~=3.10.0
 ujson~=5.9.0
 tqdm~=4.66.2
 setuptools~=68.2.2
+requests~=2.31.0
+datasets~=2.18.0
+pandas~=2.2.1
+seqeval~=1.2.2
