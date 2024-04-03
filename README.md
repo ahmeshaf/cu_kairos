@@ -2,6 +2,13 @@
 
 SRL Code adapted from Tao Li's codebase at: [utahnlp/marginal_srl_with_semlink](https://github.com/utahnlp/marginal_srl_with_semlink)
 
+## Contents
+1. [Getting Started](#getting-started)
+2. [SRL](#srl)
+   - [James Gung's Verbnet Parser](#james-gungs-verbnet-parser)
+3. [Event Trigger Identification](#event-trigger-identification)
+   - [ECB+ T5 Tagger](#ecb-t5-tagger)
+
 ## Getting Started
 
 - Dependencies
@@ -14,9 +21,9 @@ SRL Code adapted from Tao Li's codebase at: [utahnlp/marginal_srl_with_semlink](
     pip install .
     ```
 
-## Usage
+## SRL
 
-James Gung's Verbnet Parser:
+### James Gung's Verbnet Parser
 
 This can also be found in [examples/example.py](examples/example.py)
 ```python
@@ -49,3 +56,7 @@ sudo docker run -p 8080:8080 jgung/verbnet-parser:0.1-SNAPSHOT
 ```
 
 Then the `service_url` needs to be `http://localhost:8080/predict/semantics`
+
+## Event Trigger Identification
+
+### ECB+ T5 Tagger
