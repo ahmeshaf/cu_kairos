@@ -18,10 +18,21 @@ SRL Code adapted from Tao Li's codebase at: [utahnlp/marginal_srl_with_semlink](
 
 This can also be found in [examples/example.py](examples/example.py)
 ```python
-from cu_kairos.srl.tao_li import run_srl
+from cu_kairos.srl import jgung_srl
 
-sentences = ["I like this example sentence ."]
-srl_out = run_srl(sentences)
+sentences = ["I like this sentence and hate this sentence ."]
+srl_out = jgung_srl(sentences)
 print(srl_out)
-# [(['like', 'like.01', 2, 6], [('ARG0', 'I', 0, 1), ('ARG1', 'this example sentence', 7, 27)])]
+# [
+#   [   
+#       (
+#           ['like', 'admire-31.2-1', 2, 6], 
+#           [('A0', 'I', 0, 1), ('A1', 'this sentence', 7, 20)]
+#       ), 
+#       (
+#           ['hate', 'admire-31.2-1', 25, 29], 
+#           [('A0', 'I', 0, 1), ('A1', 'this sentence', 30, 43)]
+#       )
+#   ]
+# ]
 ```
