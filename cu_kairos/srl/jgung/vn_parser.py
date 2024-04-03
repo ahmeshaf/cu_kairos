@@ -16,29 +16,33 @@ def reformat(sentence, output_json):
     :return: [(['like', 'like.01', 2, 6], [('ARG0', 'I', 0, 1), ('ARG1', 'this example sentence', 7, 27)])]
     """
     srl_out = []
-    for prop in output_json['props']:
-        predicate_sense = prop['sense']
-        predicate = ''
+    for prop in output_json["props"]:
+        predicate_sense = prop["sense"]
+        predicate = ""
         predicate_begin, predicate_end = -1, -1
         arg_tuples = []
         found_predicate, found_args = False, False
-        for span in prop['spans']:
-            if span['isPredicate']:
+        for span in prop["spans"]:
+            if span["isPredicate"]:
                 found_predicate = True
-                predicate = span['text']
-                predicate_begin, predicate_end = wordoffsets2charoffsets(sentence, span['start'], span['end'])
+                predicate = span["text"]
+                predicate_begin, predicate_end = wordoffsets2charoffsets(
+                    sentence, span["start"], span["end"]
+                )
             else:
                 found_args = True
-                arg = span['text']
-                arg_begin, arg_end = wordoffsets2charoffsets(sentence, span['start'], span['end'])
-                arg_label = span['pb']
+                arg = span["text"]
+                arg_begin, arg_end = wordoffsets2charoffsets(
+                    sentence, span["start"], span["end"]
+                )
+                arg_label = span["pb"]
                 arg_tuples.append((arg_label, arg, arg_begin, arg_end))
-        
+
         if found_predicate and found_args:
             srl_out.append(
                 (
                     [predicate, predicate_sense, predicate_begin, predicate_end],
-                    [arg_tuple for arg_tuple in arg_tuples]
+                    [arg_tuple for arg_tuple in arg_tuples],
                 )
             )
     return srl_out
@@ -52,7 +56,7 @@ def wordoffsets2charoffsets(sentence, word_start, word_end):
     :param word_end:
     :return:
     """
-    whitespace_tokenized = sentence.split(' ')
+    whitespace_tokenized = sentence.split(" ")
     char_start = 0
     char_end = 0
     char_count = 0
@@ -70,17 +74,19 @@ def wordoffsets2charoffsets(sentence, word_start, word_end):
 
 
 @app.command()
-def jgung_srl(sentences):
+def jgung_srl(sentences, url=URL):
     """
     Generate SRL output for given sentences
     e.g.: sentences = ["I like this example sentence ."]
           srl_sentences = [(['like', 'like.01', 2, 6], [('ARG0', 'I', 0, 1), ('ARG1', 'this example sentence', 7, 27)])]
-    :param sentences: List[str]
+    :param
+    sentences: List[str]
+    url: str. Use the default URL provided. Or provide the locally run verbnet service url.
     :return:
     """
     srl_outputs = []
     for sentence in sentences:
-        response = requests.post(URL, data={"utterance": sentence})
+        response = requests.post(url, data={"utterance": sentence})
         response_json = response.json()
         reformatted_output = reformat(sentence, response_json)
         srl_outputs.append(reformatted_output)

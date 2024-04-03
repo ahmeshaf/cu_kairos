@@ -16,12 +16,16 @@ SRL Code adapted from Tao Li's codebase at: [utahnlp/marginal_srl_with_semlink](
 
 ## Usage
 
+James Gung's Verbnet Parser:
+
 This can also be found in [examples/example.py](examples/example.py)
 ```python
 from cu_kairos.srl import jgung_srl
 
+service_url = "http://67.176.72.197:4040/predict/semantics"
+
 sentences = ["I like this sentence and hate this sentence ."]
-srl_out = jgung_srl(sentences)
+srl_out = jgung_srl(sentences, url=service_url)
 print(srl_out)
 # [
 #   [   
@@ -36,3 +40,12 @@ print(srl_out)
 #   ]
 # ]
 ```
+
+You may also run the provided docker on: https://github.com/jgung/verbnet-parser, i.e.
+
+```shell
+sudo docker pull jgung/verbnet-parser:0.1-SNAPSHOT
+sudo docker run -p 8080:8080 jgung/verbnet-parser:0.1-SNAPSHOT
+```
+
+Then the `service_url` needs to be `http://localhost:8080/predict/semantics`
