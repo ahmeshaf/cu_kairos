@@ -3,7 +3,7 @@ from setuptools import setup
 setup(
     name='cu_kairos',
     version='0.1',
-    packages=['cu_kairos.srl', 'cu_kairos.srl.tao_li', 'cu_kairos.srl.jgung'],
+    packages=['cu_kairos.srl', 'cu_kairos.srl.tao_li', 'cu_kairos.srl.jgung', 'cu_kairos.evt_tagger'],
     url='',
     license='Apache License',
     author='rehan',

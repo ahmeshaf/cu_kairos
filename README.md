@@ -60,3 +60,23 @@ Then the `service_url` needs to be `http://localhost:8080/predict/semantics`
 ## Event Trigger Identification
 
 ### ECB+ T5 Tagger
+
+Example usage also found in [examples/ecb_tagger_example.py](examples/ecb_tagger_example.py)
+
+```python
+from cu_kairos.evt_tagger import ecb_tagger
+
+sentences = [
+    "I like this sentence and hate this sentence and I like this thing",
+    "The earthquake took 10 lives .",
+]
+
+triggers = ecb_tagger(sentences)
+
+print(triggers)
+
+# [
+#   [('like', (2, 6)), ('hate', (25, 29)), ('like', (50, 54))],
+#   [('earthquake', (4, 14)), ('took', (15, 19))]
+# ]
+```
