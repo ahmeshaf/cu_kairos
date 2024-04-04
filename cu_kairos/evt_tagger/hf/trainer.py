@@ -13,10 +13,11 @@ from transformers import (
     AutoModelForSeq2SeqLM,
     AutoTokenizer,
     DataCollatorForSeq2Seq,
+    GenerationConfig,
     Trainer,
     TrainingArguments,
     Seq2SeqTrainingArguments,
-    Seq2SeqTrainer, GenerationConfig,
+    Seq2SeqTrainer,
 )
 
 from .models import EventTagger
@@ -25,19 +26,29 @@ from ..util import compute_metrics
 app = typer.Typer()
 
 
-def pre_process(dataset):
-    entities = "entities: "
-    triggers = "triggers: "
-    inputs = [entities + doc for doc in dataset["sentence"]] + [
-        triggers + doc for doc in dataset["sentence"]
+def pre_process(dataset, eos_token):
+    entity_prefix = "entities: "
+    triggers_prefix = "triggers: "
+    inputs = [entity_prefix + doc for doc in dataset["sentence"]] + [
+        triggers_prefix + doc for doc in dataset["sentence"]
     ]
     labels_txt = [doc if doc else "NA" for doc in dataset["entities"]] + [
         doc if doc else "NA" for doc in dataset["triggers"]
     ]
 
-    return Dataset.from_dict({
-        "sentence": inputs, "labels": labels_txt
-    })
+    labels_txt = [doc + " " + eos_token for doc in labels_txt]
+
+    return Dataset.from_dict({"sentence": inputs, "labels": labels_txt})
+
+
+def pre_process_triggers(dataset, eos_token):
+    triggers_prefix = "triggers: "
+    inputs = [triggers_prefix + doc for doc in dataset["sentence"]]
+    labels_txt = [doc if doc else "NA" for doc in dataset["triggers"]]
+
+    labels_txt = [doc + " " + eos_token for doc in labels_txt]
+
+    return Dataset.from_dict({"sentence": inputs, "labels": labels_txt})
 
 
 @app.command()
@@ -48,14 +59,14 @@ def trainer_seq2seq(config_file: Path, dataset_name: str):
     model_name_or_path = config.pop("model_name_or_path")
     tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
 
-    train_dataset = pre_process(dataset["train"])
-    eval_dataset = pre_process(dataset["validation"])
+    train_dataset = pre_process(dataset["train"], tokenizer.eos_token)
+    eval_dataset = pre_process_triggers(dataset["validation"], tokenizer.eos_token)
 
     def preprocess_data(examples):
-        model_inputs = tokenizer(examples['sentence'], max_length=128, truncation=True)
+        model_inputs = tokenizer(examples["sentence"], max_length=128, truncation=True)
         with tokenizer.as_target_tokenizer():
-            labels = tokenizer(examples['labels'], max_length=32, truncation=True)
-        model_inputs['labels'] = labels['input_ids']
+            labels = tokenizer(examples["labels"], max_length=32, truncation=True)
+        model_inputs["labels"] = labels["input_ids"]
         return model_inputs
 
     train_tokenized = train_dataset.map(preprocess_data, batched=True)
@@ -65,10 +76,8 @@ def trainer_seq2seq(config_file: Path, dataset_name: str):
     training_args = Seq2SeqTrainingArguments(**config["trainer"])
 
     generation_config = GenerationConfig.from_pretrained(model_name_or_path)
-    generation_config.max_new_tokens = 32
-    generation_config.early_stopping = True
-    generation_config.min_new_tokens = 1
-    generation_config.num_beams = 2
+    generation_config.eos_token_id = tokenizer.eos_token_id
+    generation_config.update(**config["generation"])
 
     training_args.generation_config = generation_config
     data_collator = DataCollatorForSeq2Seq(tokenizer=tokenizer, model=model)
@@ -79,17 +88,27 @@ def trainer_seq2seq(config_file: Path, dataset_name: str):
         decoded_preds = tokenizer.batch_decode(predictions, skip_special_tokens=True)
         labs = np.where(labs != -100, labs, tokenizer.pad_token_id)
         decoded_labels = tokenizer.batch_decode(labs, skip_special_tokens=True)
+        # print(decoded_labels)
 
-        decoded_preds = [set([p.strip() for p in pred.split("|")]) for pred in decoded_preds]
-        decoded_labels = [set([p.strip() for p in pred.split("|")]) for pred in decoded_labels]
+        decoded_preds = [
+            set([p.strip() for p in pred.split("|") if p.strip() != ""])
+            for pred in decoded_preds
+        ]
+        decoded_labels = [
+            set([p.strip() for p in pred.split("|") if p.strip() != ""])
+            for pred in decoded_labels
+        ]
 
-        common_preds_lens = [len(set.intersection(p1, p2)) for p1, p2 in zip(decoded_preds, decoded_labels)]
+        common_preds_lens = [
+            len(set.intersection(p1, p2))
+            for p1, p2 in zip(decoded_preds, decoded_labels)
+        ]
         decoded_preds_lens = [len(p) for p in decoded_preds]
         decoded_labels_lens = [len(p) for p in decoded_labels]
 
         return {
-            "precision": np.sum(common_preds_lens)/np.sum(decoded_preds_lens),
-            "recall": np.sum(common_preds_lens)/np.sum(decoded_labels_lens)
+            "precision": np.sum(common_preds_lens) / np.sum(decoded_preds_lens),
+            "recall": np.sum(common_preds_lens) / np.sum(decoded_labels_lens),
         }
 
     t5_trainer = Seq2SeqTrainer(

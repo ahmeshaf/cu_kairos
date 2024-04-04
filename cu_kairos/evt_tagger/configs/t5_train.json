@@ -1,23 +1,26 @@
 {
-    "model_name_or_path": "/media/rehan/big_disk/models/kairos/evt_tagget_t5_large/",
+    "model_name_or_path": "google-t5/t5-small",
     "trainer": {
-        "output_dir": "/media/rehan/big_disk/models/kairos/evt_tagget_t5_large/",
+        "output_dir": "/media/rehan/big_disk/models/kairos/evt_tagget_t5_small/",
         "num_train_epochs": 250,
         "per_device_train_batch_size": 32,
         "per_device_eval_batch_size": 64,
         "warmup_steps": 50,
         "weight_decay": 0.01,
-        "logging_dir": "/media/rehan/big_disk/logs/kairos/evt_tagget_t5/",
+        "logging_dir": "/media/rehan/big_disk/models/kairos/evt_tagget_t5_small/",
         "logging_steps": 100,
         "evaluation_strategy": "steps",
-        "eval_steps": 100,
+        "eval_steps": 500,
         "predict_with_generate": true,
         "learning_rate": 2e-5,
         "load_best_model_at_end": true,
         "seed": 42
     },
     "generation": {
-        "max_new_tokens": 64
+        "max_new_tokens": 32,
+        "early_stopping": true,
+        "min_new_tokens": 2,
+        "num_beams": 2
     },
     "optimizer": {"lr": 5e-5, "eps": 1e-8}
 }
