@@ -60,8 +60,11 @@ Then the `service_url` needs to be `http://localhost:8080/predict/semantics`
 ## Event Trigger Identification
 
 ### ECB+ T5 Tagger
+Using the T5-small model [ahmeshaf/ecb_tagger_seq2seq](https://huggingface.co/ahmeshaf/ecb_tagger_seq2seq) trained on [ahmeshaf/ecb_plus_ed](https://huggingface.co/datasets/ahmeshaf/ecb_plus_ed). Checkout [trainer.py](cu_kairos/evt_tagger/hf/trainer.py) for more info
 
-Example usage also found in [examples/ecb_tagger_example.py](examples/ecb_tagger_example.py)
+This achieves 80% F1 in trigger identification on the dev set of ECB+
+
+Example usage found in [examples/ecb_tagger_example.py](examples/ecb_tagger_example.py)
 
 ```python
 from cu_kairos.evt_tagger import ecb_tagger
