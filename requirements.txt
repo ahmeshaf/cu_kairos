@@ -13,3 +13,4 @@ requests~=2.31.0
 datasets~=2.18.0
 pandas~=2.2.1
 seqeval~=1.2.2
+lxml
