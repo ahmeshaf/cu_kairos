@@ -1,3 +1,5 @@
+from typing import List
+
 from datasets import load_dataset, Dataset
 from pathlib import Path
 from typer import Typer
@@ -63,13 +65,14 @@ def make_tagger_dataset(mention_dataset_name):
 
 
 @app.command()
-def train(config_file: Path, mention_dataset: str):
+def train(config_file: Path, mention_dataset: List[str]):
+    dataset_names = list(set(mention_dataset))
+    tagger_datasets = {
+        ds_name: make_tagger_dataset(ds_name) for ds_name in dataset_names
+    }
     trainer_seq2seq_multi(
         config_file,
-        {
-            mention_dataset: make_tagger_dataset(mention_dataset),
-            mention_dataset + "_b": make_tagger_dataset(mention_dataset),
-        },
+        tagger_datasets,
     )
 
 
