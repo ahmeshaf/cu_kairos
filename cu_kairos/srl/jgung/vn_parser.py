@@ -1,6 +1,7 @@
 import requests
 import typer
 
+from nltk.tokenize import word_tokenize
 
 URL = "http://67.176.72.197:4040/predict/semantics"
 
@@ -26,14 +27,14 @@ def reformat(sentence, output_json):
             if span["isPredicate"]:
                 found_predicate = True
                 predicate = span["text"]
-                predicate_begin, predicate_end = wordoffsets2charoffsets(
-                    sentence, span["start"], span["end"]
+                predicate_begin, predicate_end = find_char_offsets_nltk(
+                    sentence, span["start"], span["end"], predicate
                 )
             else:
                 found_args = True
                 arg = span["text"]
-                arg_begin, arg_end = wordoffsets2charoffsets(
-                    sentence, span["start"], span["end"]
+                arg_begin, arg_end = find_char_offsets_nltk(
+                    sentence, span["start"], span["end"], arg
                 )
                 arg_label = span["pb"]
                 arg_tuples.append((arg_label, arg, arg_begin, arg_end))
@@ -71,6 +72,27 @@ def wordoffsets2charoffsets(sentence, word_start, word_end):
             char_count += 1
 
     return char_start, char_end
+
+
+def find_char_offsets_nltk(sentence, token_start, token_end, phrase):
+    # Using NLTK tokenizer
+    tokens = word_tokenize(sentence)
+    # print(tokens)
+    # Extract the actual tokens that form the phrase according to the given indices
+    extracted_tokens = tokens[token_start:token_end + 1]
+    extracted_phrase = ' '.join(extracted_tokens)
+
+    # Finding the start index of the extracted phrase in the original sentence
+    start_index = sentence.find(extracted_phrase)
+
+    # If there's an initial mismatch, find the exact match of the phrase in the sentence
+    if start_index == -1 or sentence[start_index:start_index + len(extracted_phrase)] != extracted_phrase:
+        start_index = sentence.find(phrase)
+
+    # End index calculation based on the exact length of the phrase
+    end_index = start_index + len(phrase)
+
+    return start_index, end_index
 
 
 @app.command()
