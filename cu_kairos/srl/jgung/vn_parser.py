@@ -17,6 +17,25 @@ def reformat(sentence, output_json):
     :return: [(['like', 'like.01', 2, 6], [('ARG0', 'I', 0, 1), ('ARG1', 'this example sentence', 7, 27)])]
     """
     srl_out = []
+    tokens = []
+    token2start_char = []
+    token2end_char = []
+    char_index = 0
+    for token in output_json["tokens"]:
+        current_tokens = token["text"].split(" ")
+        for t in current_tokens:
+            token2start_char.append(char_index)
+            tokens.append(t)
+            char_index += len(t)
+            token2end_char.append(char_index)
+            if char_index != len(sentence):
+                while sentence[char_index] == " ":
+                    char_index += 1
+                    if char_index == len(sentence):
+                        break
+    # print(tokens)
+    # print(token2start_char)
+
     for prop in output_json["props"]:
         predicate_sense = prop["sense"]
         predicate = ""
@@ -27,15 +46,12 @@ def reformat(sentence, output_json):
             if span["isPredicate"]:
                 found_predicate = True
                 predicate = span["text"]
-                predicate_begin, predicate_end = find_char_offsets_nltk(
-                    sentence, span["start"], span["end"], predicate
-                )
+                predicate_begin = token2start_char[span["start"]]
+                predicate_end = token2end_char[span["end"]]
             else:
                 found_args = True
                 arg = span["text"]
-                arg_begin, arg_end = find_char_offsets_nltk(
-                    sentence, span["start"], span["end"], arg
-                )
+                arg_begin, arg_end = token2start_char[span["start"]], token2end_char[span["end"]]
                 arg_label = span["pb"]
                 arg_tuples.append((arg_label, arg, arg_begin, arg_end))
 
